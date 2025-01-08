@@ -16,23 +16,14 @@
 
 ## 快速开始
 
-1. 下载脚本：
+一键安装命令：
 ```bash
-curl -sSL https://raw.githubusercontent.com/phpnbw/docker_remote_open/main/docker_remote_setup.sh -o docker_remote_setup.sh
+curl -sSL https://raw.githubusercontent.com/phpnbw/docker_remote_open/master/docker_remote_setup.sh -o docker_remote_setup.sh && chmod +x docker_remote_setup.sh && sudo ./docker_remote_setup.sh
 ```
 
-2. 添加执行权限：
+使用自定义端口安装：
 ```bash
-chmod +x docker_remote_setup.sh
-```
-
-3. 运行脚本：
-```bash
-# 使用默认端口(2375)
-sudo ./docker_remote_setup.sh
-
-# 或指定自定义端口
-sudo ./docker_remote_setup.sh 2376
+curl -sSL https://raw.githubusercontent.com/phpnbw/docker_remote_open/master/docker_remote_setup.sh -o docker_remote_setup.sh && chmod +x docker_remote_setup.sh && sudo ./docker_remote_setup.sh 2376
 ```
 
 ## 使用说明
@@ -78,4 +69,4 @@ MIT License
 
 ## 免责声明
 
-本脚本仅用于开发测试环境，在生产环境使用前请确保已经采取了适当的安全措施。作者不对因使用本脚本造成的任何损失负责。 
+本脚本仅用于开发测试环境，在生产环境使用前请确保已经采取了适当的安全措施。作者不对因使用本脚本造成的任何损失负责。
