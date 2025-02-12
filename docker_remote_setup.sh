@@ -85,12 +85,28 @@ if [ -f /etc/docker/daemon.json ]; then
     cp /etc/docker/daemon.json /etc/docker/daemon.json.bak
 fi
 
-mkdir -p /etc/docker
-cat > /etc/docker/daemon.json << EOF
-{
-  "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:$PORT"]
-}
-EOF
+# 读取现有配置
+if [ -f /etc/docker/daemon.json ]; then
+    existing_config=$(cat /etc/docker/daemon.json)
+else
+    existing_config="{}"
+fi
+
+# 使用 jq 工具来更新配置
+if command -v jq &> /dev/null; then
+    echo "$existing_config" | jq --arg port "$PORT" '.hosts = ["unix:///var/run/docker.sock", "tcp://0.0.0.0:" + $port]' > /etc/docker/daemon.json
+else
+    echo "需要安装 jq 工具来更新配置"
+    case $OS in
+        "debian"|"ubuntu")
+            apt install -y jq
+            ;;
+        "centos")
+            yum install -y jq
+            ;;
+    esac
+    echo "$existing_config" | jq --arg port "$PORT" '.hosts = ["unix:///var/run/docker.sock", "tcp://0.0.0.0:" + $port]' > /etc/docker/daemon.json
+fi
 
 if [ -f /etc/systemd/system/docker.service.d/override.conf ]; then
     cp /etc/systemd/system/docker.service.d/override.conf /etc/systemd/system/docker.service.d/override.conf.bak
