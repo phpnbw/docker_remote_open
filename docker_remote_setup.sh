@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 设置默认端口
-DEFAULT_PORT=2375
+DEFAULT_PORT=23225
 PORT=${1:-$DEFAULT_PORT}
 
 # 检查是否为root用户
