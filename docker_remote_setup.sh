@@ -4,14 +4,6 @@
 DEFAULT_PORT=2375
 PORT=${1:-$DEFAULT_PORT}
 
-# 验证端口号是否有效
-if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
-    echo "错误：请提供有效的端口号 (1-65535)"
-    echo "用法：$0 [端口号]"
-    echo "示例：$0 2375"
-    exit 1
-fi
-
 # 检查是否为root用户
 if [ "$EUID" -ne 0 ]; then 
     echo "请使用root权限运行此脚本"
@@ -29,20 +21,38 @@ else
     exit 1
 fi
 
-# 系统更新
-echo "正在更新系统..."
-case $OS in
-    "debian"|"ubuntu")
-        apt update && apt upgrade -y
-        ;;
-    "centos")
-        yum update -y
-        ;;
+# 检查是否需要更新系统
+UPDATE_SYSTEM=false
+while getopts "u" opt; do
+  case $opt in
+    u)
+      UPDATE_SYSTEM=true
+      ;;
     *)
-        echo "不支持的操作系统"
-        exit 1
-        ;;
-esac
+      echo "用法: $0 [-u] [端口号]"
+      echo "  -u  更新系统"
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+# 更新系统
+if [ "$UPDATE_SYSTEM" = true ]; then
+    echo "正在更新系统..."
+    case $OS in
+        "debian"|"ubuntu")
+            apt update && apt upgrade -y
+            ;;
+        "centos")
+            yum update -y
+            ;;
+        *)
+            echo "不支持的操作系统"
+            exit 1
+            ;;
+    esac
+fi
 
 # 检查并安装curl
 if ! command -v curl &> /dev/null; then
