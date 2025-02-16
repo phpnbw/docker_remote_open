@@ -95,47 +95,19 @@ fi
 # 配置Docker Remote API
 echo "配置Docker Remote API 在端口 $PORT ..."
 
-# 备份原有的 daemon.json
+# 备份原有配置（如果存在）
 if [ -f /etc/docker/daemon.json ]; then
     cp /etc/docker/daemon.json /etc/docker/daemon.json.bak
 fi
 
-# 创建或更新 daemon.json
-mkdir -p /etc/docker
-if [ -f /etc/docker/daemon.json ]; then
-    # 如果文件存在，保留现有配置并添加 hosts
-    tmp_config=$(mktemp)
-    if ! command -v jq &> /dev/null; then
-        echo "安装 jq..."
-        case $OS in
-            "debian"|"ubuntu")
-                apt install -y jq
-                ;;
-            "centos")
-                yum install -y jq
-                ;;
-        esac
-    fi
-    jq --arg port "$PORT" '. + {"hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:" + $port]}' /etc/docker/daemon.json > "$tmp_config"
-    mv "$tmp_config" /etc/docker/daemon.json
-else
-    # 如果文件不存在，创建新配置
-    cat > /etc/docker/daemon.json << EOF
-{
-  "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:$PORT"]
-}
-EOF
-fi
-
-# 删除可能存在的 systemd override 配置
-rm -rf /etc/systemd/system/docker.service.d
-
-# 修改 Docker 服务配置
+# 确保目录存在
 mkdir -p /etc/systemd/system/docker.service.d
+
+# 创建 systemd override 配置
 cat > /etc/systemd/system/docker.service.d/override.conf << EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/dockerd
+ExecStart=/usr/bin/dockerd -H unix:///var/run/docker.sock -H tcp://0.0.0.0:$PORT
 EOF
 
 # 重启Docker服务
@@ -145,11 +117,12 @@ systemctl restart docker
 # 检查Docker是否成功重启
 if ! systemctl is-active docker >/dev/null 2>&1; then
     echo "Docker启动失败，正在回滚配置..."
-    # 恢复daemon.json
+    # 删除 override 配置
+    rm -rf /etc/systemd/system/docker.service.d
+    
+    # 恢复 daemon.json（如果有备份）
     if [ -f /etc/docker/daemon.json.bak ]; then
         mv /etc/docker/daemon.json.bak /etc/docker/daemon.json
-    else
-        rm -f /etc/docker/daemon.json
     fi
     
     systemctl daemon-reload
