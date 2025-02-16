@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# 设置默认端口
+# 设置默认端口和参数
 DEFAULT_PORT=2375
-PORT=${1:-$DEFAULT_PORT}
+UPDATE_SYSTEM=false
+PORT=$DEFAULT_PORT
 
 # 检查是否为root用户
 if [ "$EUID" -ne 0 ]; then 
@@ -21,21 +22,35 @@ else
     exit 1
 fi
 
-# 检查是否需要更新系统
-UPDATE_SYSTEM=false
+# 处理参数
 while getopts "u" opt; do
-  case $opt in
-    u)
-      UPDATE_SYSTEM=true
-      ;;
-    *)
-      echo "用法: $0 [-u] [端口号]"
-      echo "  -u  更新系统"
-      exit 1
-      ;;
-  esac
+    case $opt in
+        u)
+            UPDATE_SYSTEM=true
+            ;;
+        *)
+            echo "用法: $0 [-u] [端口号]"
+            echo "  -u  更新系统"
+            exit 1
+            ;;
+    esac
 done
 shift $((OPTIND -1))
+
+# 如果有额外参数，设置为端口号
+if [ $# -gt 0 ]; then
+    if [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]; then
+        PORT=$1
+    else
+        echo "错误：端口号必须是 1-65535 之间的数字"
+        exit 1
+    fi
+fi
+
+# 显示配置信息
+echo "配置信息："
+echo "- 端口: $PORT"
+echo "- 系统更新: $UPDATE_SYSTEM"
 
 # 更新系统
 if [ "$UPDATE_SYSTEM" = true ]; then
