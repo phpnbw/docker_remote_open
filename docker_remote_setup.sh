@@ -80,29 +80,28 @@ fi
 # 配置Docker Remote API
 echo "配置Docker Remote API 在端口 $PORT ..."
 
-# 备份原有配置
+# 创建 systemd override 目录
+mkdir -p /etc/systemd/system/docker.service.d
+
+# 创建 override 配置
+cat > /etc/systemd/system/docker.service.d/override.conf << EOF
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:$PORT
+EOF
+
+# 备份原有的 daemon.json
 if [ -f /etc/docker/daemon.json ]; then
     cp /etc/docker/daemon.json /etc/docker/daemon.json.bak
 fi
 
-mkdir -p /etc/docker
-# 直接写入新的配置，保留其他现有配置
+# 确保 daemon.json 不包含 hosts 配置
 if [ -f /etc/docker/daemon.json ]; then
-    # 如果文件存在，合并配置
+    # 如果文件存在，移除 hosts 配置
     tmp_config=$(mktemp)
-    jq --arg port "$PORT" '. * {"hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:" + $port]}' /etc/docker/daemon.json > "$tmp_config"
+    jq 'del(.hosts)' /etc/docker/daemon.json > "$tmp_config"
     mv "$tmp_config" /etc/docker/daemon.json
-else
-    # 如果文件不存在，创建新配置
-    cat > /etc/docker/daemon.json << EOF
-{
-    "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:$PORT"]
-}
-EOF
 fi
-
-# 移除 systemd override 配置，因为它可能会覆盖 daemon.json 中的设置
-rm -rf /etc/systemd/system/docker.service.d
 
 # 重启Docker服务
 systemctl daemon-reload
