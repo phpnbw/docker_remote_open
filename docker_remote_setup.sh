@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 设置默认端口和参数
-DEFAULT_PORT=2375
+DEFAULT_PORT=43111
 UPDATE_SYSTEM=false
 PORT=$DEFAULT_PORT
 
