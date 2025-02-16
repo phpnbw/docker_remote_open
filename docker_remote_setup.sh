@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 设置默认端口
-DEFAULT_PORT=23225
+DEFAULT_PORT=2375
 PORT=${1:-$DEFAULT_PORT}
 
 # 检查是否为root用户
@@ -85,42 +85,26 @@ if [ -f /etc/docker/daemon.json ]; then
     cp /etc/docker/daemon.json /etc/docker/daemon.json.bak
 fi
 
-# 读取现有配置
+mkdir -p /etc/docker
+# 直接写入新的配置，保留其他现有配置
 if [ -f /etc/docker/daemon.json ]; then
-    existing_config=$(cat /etc/docker/daemon.json)
+    # 如果文件存在，合并配置
+    tmp_config=$(mktemp)
+    jq --arg port "$PORT" '. * {"hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:" + $port]}' /etc/docker/daemon.json > "$tmp_config"
+    mv "$tmp_config" /etc/docker/daemon.json
 else
-    existing_config="{}"
-fi
-
-# 使用 jq 工具来更新配置
-if command -v jq &> /dev/null; then
-    echo "$existing_config" | jq --arg port "$PORT" '.hosts = ["unix:///var/run/docker.sock", "tcp://0.0.0.0:" + $port]' > /etc/docker/daemon.json
-else
-    echo "需要安装 jq 工具来更新配置"
-    case $OS in
-        "debian"|"ubuntu")
-            apt install -y jq
-            ;;
-        "centos")
-            yum install -y jq
-            ;;
-    esac
-    echo "$existing_config" | jq --arg port "$PORT" '.hosts = ["unix:///var/run/docker.sock", "tcp://0.0.0.0:" + $port]' > /etc/docker/daemon.json
-fi
-
-if [ -f /etc/systemd/system/docker.service.d/override.conf ]; then
-    cp /etc/systemd/system/docker.service.d/override.conf /etc/systemd/system/docker.service.d/override.conf.bak
-fi
-
-mkdir -p /etc/systemd/system/docker.service.d
-cat > /etc/systemd/system/docker.service.d/override.conf << EOF
-[Service]
-ExecStart=
-ExecStart=/usr/bin/dockerd
+    # 如果文件不存在，创建新配置
+    cat > /etc/docker/daemon.json << EOF
+{
+    "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:$PORT"]
+}
 EOF
+fi
+
+# 移除 systemd override 配置，因为它可能会覆盖 daemon.json 中的设置
+rm -rf /etc/systemd/system/docker.service.d
 
 # 重启Docker服务
-echo "重启Docker服务..."
 systemctl daemon-reload
 systemctl restart docker
 
@@ -132,13 +116,6 @@ if ! systemctl is-active docker >/dev/null 2>&1; then
         mv /etc/docker/daemon.json.bak /etc/docker/daemon.json
     else
         rm -f /etc/docker/daemon.json
-    fi
-    
-    # 恢复override.conf
-    if [ -f /etc/systemd/system/docker.service.d/override.conf.bak ]; then
-        mv /etc/systemd/system/docker.service.d/override.conf.bak /etc/systemd/system/docker.service.d/override.conf
-    else
-        rm -rf /etc/systemd/system/docker.service.d
     fi
     
     systemctl daemon-reload
