@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 设置默认端口和参数
-DEFAULT_PORT=43117
+# 生成10000-51000之间的随机端口
+DEFAULT_PORT=$(( ($RANDOM % 41001) + 10000 ))
 UPDATE_SYSTEM=false
 PORT=$DEFAULT_PORT
 
